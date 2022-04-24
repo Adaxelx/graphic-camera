@@ -2,8 +2,9 @@ let mapOfPoints = {};
 let mapOf2dPoints = {};
 let connections = [];
 const translation = { x: 100, y: 100, z: 0 };
-let distance = 1000;
+let distance = 10;
 let rotateDeg = 0;
+let scale = 1;
 const {
   perspectiveProjection,
   rotateX3d,
@@ -11,6 +12,7 @@ const {
   rotateY3d,
   translatePoint,
   rotatePointAroundLine,
+  scalePoint,
 } = Matrix();
 
 const canvasWidth = 800;
@@ -80,6 +82,14 @@ function setup() {
       rotateDeg += 0.1;
     } else if (e.key === "ArrowLeft") {
       rotateDeg -= 0.1;
+    } else if (e.key === "Enter") {
+      distance += 10;
+    } else if (e.key === "p") {
+      distance -= 10;
+    } else if (e.key === "q") {
+      scale += 0.1;
+    } else if (e.key == "w") {
+      scale -= 0.1;
     }
     // const rotationValue = e.target.value;
     // Object.entries(mapOfPoints).forEach(([key, value]) => {
@@ -128,14 +138,16 @@ function draw() {
       const rotateObjX = { A: 1, B: 1, C: 0 };
       const T1 = { x: width / 2, y: height, z: 0 };
 
+      const scaled = scalePoint(value, scale);
+
       const rotatedPointY = rotatePointAroundLine(
-        value,
+        scaled,
         T1,
         rotateObjY,
         rotateDeg
       );
       const rotatedPointX = rotatePointAroundLine(
-        value,
+        scaled,
         T1,
         rotateObjX,
         rotateDeg

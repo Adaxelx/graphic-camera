@@ -6,6 +6,13 @@ const Matrix = () => {
     [0, 0, 0, 1],
   ];
 
+  const getScaleMatrix = (s) => [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1 / s],
+  ];
+
   const getRotateXLineMatrix = ({ B, C }) => {
     const divider = Math.sqrt(B ** 2 + C ** 2);
     return [
@@ -157,6 +164,15 @@ const Matrix = () => {
     );
   };
 
+  const multiplyScale = (pMatrix, point, s) => {
+    const result = multiplyMatrixes(pMatrix, point);
+    const [x, y, z, n] = result.flat().map((value) => value * s);
+    return { x, y, z, n };
+  };
+
+  const scalePoint = (point, s) =>
+    multiplyScale(getScaleMatrix(s), generatePointMatrix(point), s);
+
   return {
     perspectiveProjection,
     rotateX3d,
@@ -167,5 +183,6 @@ const Matrix = () => {
     getRotateYLineMatrix,
     getTranslationMatrix,
     rotatePointAroundLine,
+    scalePoint,
   };
 };
