@@ -2,18 +2,19 @@ let mapOfPoints = {};
 let mapOf2dPoints = {};
 let connections = [];
 const translation = { x: 100, y: 100, z: 0 };
-let distance = 10000;
-
+let distance = 1000;
+let rotateDeg = 0;
 const {
   perspectiveProjection,
   rotateX3d,
   rotateZ3d,
   rotateY3d,
   translatePoint,
+  rotatePointAroundLine,
 } = Matrix();
 
-const canvasWidth = 400;
-const canvasHeight = 400;
+const canvasWidth = 800;
+const canvasHeight = 800;
 
 function setup() {
   const observerVector = createVector(canvasWidth / 2, canvasHeight);
@@ -57,6 +58,7 @@ function setup() {
   });
 
   document.getElementById("rotation").addEventListener("change", function (e) {
+    rotateDeg = e.target.value;
     const rotationValue = e.target.value;
     Object.entries(mapOfPoints).forEach(([key, value]) => {
       const rotated2 = rotateY3d(
@@ -72,13 +74,35 @@ function setup() {
     });
     console.log(mapOf2dPoints);
   });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") {
+      rotateDeg += 0.1;
+    } else if (e.key === "ArrowLeft") {
+      rotateDeg -= 0.1;
+    }
+    // const rotationValue = e.target.value;
+    // Object.entries(mapOfPoints).forEach(([key, value]) => {
+    //   const rotated2 = rotateY3d(
+    //     translatePoint(value, translation),
+    //     rotationValue
+    //   );
+
+    //   //   const rotated1 = rotateZ3d(rotated2, rotationValue);
+
+    //   //   const rotated = rotateX3d(rotated1, rotationValue);
+    //   console.log(rotated2);
+    //   mapOf2dPoints[key] = perspectiveProjection(rotated2, distance);
+    // });
+    // console.log(mapOf2dPoints);
+  });
 }
 
 let rotationValue = 0;
 let change = 0.1;
 function draw() {
   clear();
-  //   translate(width / 2, height / 2);
+  translate(width / 2, height / 2);
   frameRate(5);
   //   console.log(rotationValue);
   if (connections.length) {
@@ -100,10 +124,27 @@ function draw() {
         { x: value.x - 200, y: value.y - 400, z: 0 }
       );
 
+      const rotateObjY = { A: 0, B: 1, C: 0 };
+      const rotateObjX = { A: 1, B: 1, C: 0 };
+      const T1 = { x: width / 2, y: height, z: 0 };
+
+      const rotatedPointY = rotatePointAroundLine(
+        value,
+        T1,
+        rotateObjY,
+        rotateDeg
+      );
+      const rotatedPointX = rotatePointAroundLine(
+        value,
+        T1,
+        rotateObjX,
+        rotateDeg
+      );
+
       //   const rotated1 = rotateZ3d(rotated2, rotationValue);
 
       //   const rotated = rotateX3d(rotated1, rotationValue);
-      mapOf2dPoints[key] = perspectiveProjection(rotated2, distance);
+      mapOf2dPoints[key] = perspectiveProjection(rotatedPointX, distance);
     });
     connections.forEach(({ from, to }) => {
       const { x: xFrom, y: yFrom } = mapOf2dPoints[from];

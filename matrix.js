@@ -6,6 +6,27 @@ const Matrix = () => {
     [0, 0, 0, 1],
   ];
 
+  const getRotateXLineMatrix = ({ B, C }) => {
+    const divider = Math.sqrt(B ** 2 + C ** 2);
+    return [
+      [1, 0, 0, 0],
+      [0, C / divider, -B / divider, 0],
+      [0, B / divider, -C / divider, 0],
+      [0, 0, 0, 1],
+    ];
+  };
+
+  const getRotateYLineMatrix = ({ A, B, C }) => {
+    const divider = Math.sqrt(A ** 2 + B ** 2 + C ** 2);
+    const BCsqrt = Math.sqrt(B ** 2 + C ** 2);
+    return [
+      [A / divider, 0, BCsqrt / divider, 0],
+      [0, 1, 0, 0],
+      [-BCsqrt / divider, 0, A / divider, 0],
+      [0, 0, 0, 1],
+    ];
+  };
+
   const getPerspectiveMatrix = (d) => [
     [1, 0, 0, 0],
     [0, 1, 0, 0],
@@ -99,11 +120,52 @@ const Matrix = () => {
       generatePointMatrix(point)
     );
 
+  const rotatePointAroundLine = (point, T1, rotateObj, degree) => {
+    const T2 = {
+      x: T1.x + rotateObj.A,
+      y: T1.y + rotateObj.B,
+      z: T1.z + rotateObj.C,
+    };
+
+    const translationMatrix = getTranslationMatrix({
+      x: -T1.x,
+      y: -T1.y,
+      z: -T1.z,
+    });
+    const rotateLineXMatrix = getRotateXLineMatrix(rotateObj);
+    const rotateLineYMatrix = getRotateYLineMatrix(rotateObj);
+
+    // console.log(
+    //   math.multiply(math.inv(translationMatrix), math.inv(rotateLineXMatrix)),
+    //   math.inv(rotateLineYMatrix),
+    //   getRotateXMatrix(degree),
+    //   rotateLineYMatrix,
+    //   rotateLineXMatrix,
+    //   translationMatrix
+    // );
+
+    return multiplyParsed(
+      math.multiply(
+        math.multiply(math.inv(translationMatrix), math.inv(rotateLineXMatrix)),
+        math.inv(rotateLineYMatrix),
+        getRotateXMatrix(degree),
+        rotateLineYMatrix,
+        rotateLineXMatrix,
+        translationMatrix
+      ),
+      generatePointMatrix(point)
+    );
+  };
+
   return {
     perspectiveProjection,
     rotateX3d,
     rotateZ3d,
     rotateY3d,
     translatePoint,
+    getRotateXLineMatrix,
+    getRotateYLineMatrix,
+    getTranslationMatrix,
+    rotatePointAroundLine,
   };
 };
