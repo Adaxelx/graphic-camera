@@ -7,11 +7,24 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     ></script>
+    <script src="helpers.js"></script>
     <script src="matrix.js"></script>
     <script src="sketch.js"></script>
   </head>
+  <style>
+    #root {
+      display: flex;
+      width: 100%;
+    }
+    aside {
+      flex-grow: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+  </style>
   <body>
-    <main></main>
+    <main id="root"></main>
     <input type="file" name="inputfile" id="inputfile" />
   </body>
 </html>
