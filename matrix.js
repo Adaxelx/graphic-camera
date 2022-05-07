@@ -142,15 +142,6 @@ const Matrix = () => {
     const rotateLineXMatrix = getRotateXLineMatrix(rotateObj);
     const rotateLineYMatrix = getRotateYLineMatrix(rotateObj);
 
-    // console.log(
-    //   math.multiply(math.inv(translationMatrix), math.inv(rotateLineXMatrix)),
-    //   math.inv(rotateLineYMatrix),
-    //   getRotateXMatrix(degree),
-    //   rotateLineYMatrix,
-    //   rotateLineXMatrix,
-    //   translationMatrix
-    // );
-
     return multiplyParsed(
       math.multiply(
         math.multiply(math.inv(translationMatrix), math.inv(rotateLineXMatrix)),

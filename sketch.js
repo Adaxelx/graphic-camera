@@ -6,13 +6,56 @@ let distance = 1000;
 
 const {
   perspectiveProjection,
-  rotateX3d,
-  rotateZ3d,
-  rotateY3d,
   translatePoint,
   rotatePointAroundLine,
   scalePoint,
 } = Matrix();
+
+const getKeyboardConfig = () => {
+  const rotationStep = 0.1;
+  const translationStep = 10;
+  const zoomStep = 0.1;
+  return {
+    rotation: {
+      x: [
+        { keys: ["ArrowUp"], value: rotationStep },
+        { keys: ["ArrowDown"], value: -rotationStep },
+      ],
+      y: [
+        { keys: ["ArrowRight"], value: rotationStep },
+        { keys: ["ArrowLeft"], value: -rotationStep },
+      ],
+      z: [
+        { keys: ["q", "Q"], value: -rotationStep },
+        { keys: ["e", "E"], value: rotationStep },
+      ],
+    },
+    translation: {
+      x: [
+        { keys: ["a", "A"], value: -translationStep },
+        { keys: ["d", "D"], value: translationStep },
+      ],
+
+      y: [
+        { keys: ["w", "W"], value: -translationStep },
+        { keys: ["s", "S"], value: translationStep },
+      ],
+
+      z: [
+        { keys: ["z", "Z"], value: -translationStep },
+        { keys: ["x", "X"], value: translationStep },
+      ],
+    },
+    zoom: {
+      value: [
+        { keys: ["o", "O"], value: zoomStep },
+        { keys: ["p", "P"], value: -zoomStep },
+      ],
+    },
+  };
+};
+
+const keyboardConfig = getKeyboardConfig();
 
 const canvasWidth = 800;
 const canvasHeight = 800;
@@ -26,13 +69,13 @@ const rotationAxisParams = {
 const params = {
   rotation: { x: 0, y: 0, z: 0 },
   translation: { x: 0, y: 0, z: 0 },
-  zoom: 1,
+  zoom: { value: 1 },
 };
 
 function setup() {
   createCanvas(canvasWidth, canvasHeight);
   fill(0);
-
+  createListOfKeys();
   document.getElementById("inputfile").addEventListener("change", function () {
     var fr = new FileReader();
     fr.onload = function () {
@@ -59,35 +102,15 @@ function setup() {
   });
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "ArrowRight") {
-      params.rotation.y += 0.1;
-    } else if (e.key === "ArrowLeft") {
-      params.rotation.y -= 0.1;
-    } else if (e.key === "ArrowUp") {
-      params.rotation.x += 0.1;
-    } else if (e.key === "ArrowDown") {
-      params.rotation.x -= 0.1;
-    } else if (e.key === "q" || e.key === "Q") {
-      params.rotation.z -= 0.1;
-    } else if (e.key === "e" || e.key === "E") {
-      params.rotation.z += 0.1;
-    } else if (e.key === "a" || e.key === "A") {
-      params.translation.x -= 10;
-    } else if (e.key === "d" || e.key === "D") {
-      params.translation.x += 10;
-    } else if (e.key === "w" || e.key === "W") {
-      params.translation.y -= 10;
-    } else if (e.key === "s" || e.key === "S") {
-      params.translation.y += 10;
-    } else if (e.key === "z" || e.key === "Z") {
-      params.translation.z -= 10;
-    } else if (e.key === "x" || e.key === "X") {
-      params.translation.z += 10;
-    } else if (e.key === "o" || e.key === "O") {
-      params.zoom += 0.1;
-    } else if (e.key === "p" || e.key === "P") {
-      params.zoom -= 0.1;
-    }
+    Object.entries(keyboardConfig).forEach(([actionName, configs]) => {
+      Object.entries(configs).forEach(([configName, options]) => {
+        options.forEach((option) => {
+          if (option.keys.some((keyValue) => e.key === keyValue)) {
+            params[actionName][configName] += option.value;
+          }
+        });
+      });
+    });
   });
 }
 
@@ -98,12 +121,8 @@ function draw() {
   if (connections.length) {
     Object.entries(mapOfPoints).forEach(([key, value]) => {
       const T1 = { x: 0, y: 0, z: 0 };
-      let point = {
-        x: value.x + params.translation.x,
-        y: value.y + params.translation.y,
-        z: value.z + params.translation.z,
-      };
-      point = scalePoint(point, params.zoom);
+      let point = value;
+      point = scalePoint(point, params.zoom.value);
 
       Object.entries(params.rotation).forEach(([key, value]) => {
         if (value) {
@@ -115,6 +134,12 @@ function draw() {
           );
         }
       });
+
+      point = {
+        x: point.x + params.translation.x,
+        y: point.y + params.translation.y,
+        z: point.z + params.translation.z,
+      };
       mapOf2dPoints[key] = perspectiveProjection(point, distance);
     });
 
@@ -165,4 +190,35 @@ const normalizePoints = () => {
     {}
   );
   mapOf2dPoints = newMapOf2dPoints;
+};
+
+const createListOfKeys = () => {
+  const container = document.createElement("aside");
+
+  Object.entries(keyboardConfig).forEach(([actionName, configs]) => {
+    const wrapper = document.createElement("div");
+    const header = document.createElement("h2");
+    header.textContent = actionName;
+    wrapper.appendChild(header);
+    Object.entries(configs).forEach(([configName, options]) => {
+      const operationNode = document.createElement("h3");
+      operationNode.textContent = `${configName}`;
+      wrapper.appendChild(operationNode);
+      options.forEach((option) => {
+        let content = "Keys: ";
+        content = option.keys.reduce((prevContent, key, index) => {
+          console.log(index, option.keys.length);
+          const separator = index === option.keys.length - 1 ? " " : " or ";
+          return prevContent + key + separator;
+        }, content);
+        const keyNode = document.createElement("p");
+        content += `/ change: ${option.value}`;
+        keyNode.textContent = content;
+        wrapper.appendChild(keyNode);
+      });
+    });
+    container.appendChild(wrapper);
+  });
+
+  document.getElementById("root").appendChild(container);
 };
