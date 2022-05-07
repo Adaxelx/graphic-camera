@@ -43,6 +43,8 @@ const Helpers = () => {
     };
   };
 
+  const keyboardConfig = getKeyboardConfig();
+
   const createListOfKeys = () => {
     const container = document.createElement("aside");
 
@@ -75,7 +77,7 @@ const Helpers = () => {
   };
 
   return {
-    keyboardConfig: getKeyboardConfig(),
+    keyboardConfig,
     createListOfKeys,
   };
 };

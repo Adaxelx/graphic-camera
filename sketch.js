@@ -28,6 +28,8 @@ const {
   scalePoint,
 } = Matrix();
 
+let changed = true;
+
 const { keyboardConfig, createListOfKeys } = Helpers();
 
 function setup() {
@@ -65,6 +67,7 @@ function setup() {
         options.forEach((option) => {
           if (option.keys.some((keyValue) => e.key === keyValue)) {
             params[actionName][configName] += option.value;
+            changed = true;
           }
         });
       });
@@ -75,8 +78,9 @@ function setup() {
 function draw() {
   clear();
   translate(width / 2, height / 2);
-
-  if (connections.length) {
+  frameRate(24);
+  if (!connections.length) return;
+  if (changed) {
     Object.entries(mapOfPoints).forEach(([key, value]) => {
       let point = value;
       point = scalePoint(point, params.zoom.value);
@@ -100,15 +104,17 @@ function draw() {
 
       mapOf2dPoints[key] = perspectiveProjection(point, distance);
     });
-
-    connections.forEach(({ from, to }) => {
-      const { x: xFrom, y: yFrom } = mapOf2dPoints[from];
-      const { x: xTo, y: yTo } = mapOf2dPoints[to];
-
-      line(xFrom, yFrom, xTo, yTo);
-      strokeWeight(1);
-    });
   }
+
+  connections.forEach(({ from, to }) => {
+    const { x: xFrom, y: yFrom } = mapOf2dPoints[from];
+    const { x: xTo, y: yTo } = mapOf2dPoints[to];
+
+    line(xFrom, yFrom, xTo, yTo);
+    strokeWeight(1);
+  });
+
+  changed = false;
 }
 
 // Not used
