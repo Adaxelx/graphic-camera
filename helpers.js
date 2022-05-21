@@ -20,13 +20,13 @@ const Helpers = () => {
       },
       translation: {
         x: [
-          { keys: ["a", "A"], value: -translationStep },
-          { keys: ["d", "D"], value: translationStep },
+          { keys: ["a", "A"], value: translationStep },
+          { keys: ["d", "D"], value: -translationStep },
         ],
 
         y: [
-          { keys: ["w", "W"], value: -translationStep },
-          { keys: ["s", "S"], value: translationStep },
+          { keys: ["w", "W"], value: translationStep },
+          { keys: ["s", "S"], value: -translationStep },
         ],
 
         z: [

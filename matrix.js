@@ -41,6 +41,13 @@ const Matrix = () => {
     [0, 0, 1 / d, 1],
   ];
 
+  const getPerspectiveMatrix2 = (a, fi = 90, zf = 1000, zn = 0.01) => [
+    [1 / (a * Math.tan(fi / 2)), 0, 0, 0],
+    [0, 1 / Math.tan(fi / 2), 0, 0],
+    [0, 0, zn / (zn - zf), (2 * zn * zf) / (zn - zf)],
+    [0, 0, -1, 0],
+  ];
+
   const getRotateXMatrix = (angle) => [
     [1, 0, 0, 0],
     [0, Math.cos(angle), -Math.sin(angle), 0],
@@ -114,9 +121,19 @@ const Matrix = () => {
   const rotateZ3d = (point, angle) =>
     multiplyParsed(getRotateZMatrix(angle), generatePointMatrix(point));
 
-  const perspectiveProjection = (point, distance) =>
+  const rotatePoint = ({ x, y, z }, point) =>
+    multiplyParsed(
+      math.multiply(
+        getRotateXMatrix(x),
+        getRotateYMatrix(y),
+        getRotateZMatrix(z)
+      ),
+      generatePointMatrix(point)
+    );
+
+  const perspectiveProjection = (point, distance, fi) =>
     perspectiveMultiplyParse(
-      getPerspectiveMatrix(distance),
+      getPerspectiveMatrix2(1, fi),
       generatePointMatrix(point),
       distance
     );
@@ -175,5 +192,7 @@ const Matrix = () => {
     getTranslationMatrix,
     rotatePointAroundLine,
     scalePoint,
+    getPerspectiveMatrix2,
+    rotatePoint,
   };
 };

@@ -18,14 +18,18 @@ const rotationAxisParams = {
 const params = {
   rotation: { x: 0, y: 0, z: 0 },
   translation: { x: 0, y: 0, z: 0 },
-  zoom: { value: 1 },
+  zoom: { value: 90 },
+  changed: "",
 };
 
 const {
   perspectiveProjection,
   translatePoint,
-  rotatePointAroundLine,
+  rotateX3d,
+  rotateY3d,
+  rotateZ3d,
   scalePoint,
+  rotatePoint,
 } = Matrix();
 
 let changed = true;
@@ -49,7 +53,11 @@ function setup() {
           const [id, x, y, z] = line.split(" ").map((str) => Number(str));
           mapOfPoints[id] = { x, y, z };
           Object.entries(mapOfPoints).forEach(([key, value]) => {
-            mapOf2dPoints[key] = perspectiveProjection(value, distance);
+            mapOf2dPoints[key] = perspectiveProjection(
+              value,
+              distance,
+              params.zoom.value
+            );
           });
         } else if (titleCount === 2) {
           const [from, to] = line.split(" ");
@@ -67,6 +75,7 @@ function setup() {
         options.forEach((option) => {
           if (option.keys.some((keyValue) => e.key === keyValue)) {
             params[actionName][configName] += option.value;
+            params.changed = configName;
             changed = true;
           }
         });
@@ -83,26 +92,52 @@ function draw() {
   if (changed) {
     Object.entries(mapOfPoints).forEach(([key, value]) => {
       let point = value;
-      point = scalePoint(point, params.zoom.value);
 
-      Object.entries(params.rotation).forEach(([key, value]) => {
-        if (value) {
-          point = rotatePointAroundLine(
-            point,
-            T1,
-            rotationAxisParams[key],
-            params.rotation[key]
-          );
-        }
-      });
+      const shouldRotate =
+        params.changed === "x" ||
+        params.changed === "y" ||
+        params.changed === "z";
+
+      // Object.entries(params.rotation).forEach(([key, value]) => {
+      //   // console.log(key === params.changed);
+      //   if (!value) return;
+      //   if (key === "z") {
+      //     point = rotateZ3d(point, value);
+      //   } else if (key === "x") {
+      //     point = rotateX3d(point, value);
+      //   } else if (key === "y") {
+      //     point = rotateY3d(point, value);
+      //   }
+      // });
+      point = rotatePoint(params.rotation, value);
+      console.log(point);
+      // console.log(
+      //   params.changed,
+      //   shouldRotate,
+      //   params.rotation[params.changed]
+      // );
+      // if (shouldRotate) {
+      //   if (params.changed === "z") {
+      //     point = rotateZ3d(point, params.rotation[params.changed]);
+      //   } else if (params.changed === "x") {
+      //     point = rotateX3d(point, params.rotation[params.changed]);
+      //   } else if (params.changed === "y") {
+      //     point = rotateY3d(point, params.rotation[params.changed]);
+      //   }
+      // }
 
       point = {
         x: point.x + params.translation.x,
         y: point.y + params.translation.y,
         z: point.z + params.translation.z,
       };
+      // point = scalePoint(point, params.zoom.value);
 
-      mapOf2dPoints[key] = perspectiveProjection(point, distance);
+      mapOf2dPoints[key] = perspectiveProjection(
+        point,
+        distance,
+        params.zoom.value
+      );
     });
   }
 
