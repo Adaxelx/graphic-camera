@@ -1,12 +1,14 @@
 let mapOfPoints = {};
 let mapOf2dPoints = {};
 let connections = [];
+let shapes = [];
 
 let distance = 1000;
 
 const canvasWidth = 800;
 const canvasHeight = 800;
 
+const average = (...args) => args.reduce((a, b) => a + b) / args.length;
 const T1 = { x: 0, y: 0, z: 0 };
 
 const rotationAxisParams = {
@@ -60,10 +62,11 @@ function setup() {
             );
           });
         } else if (titleCount === 2) {
-          const [from, to] = line.split(" ");
-          connections.push({ from, to });
+          const [p1, p2, p3, p4] = line.split(" ");
+          shapes.push({ p1, p2, p3, p4 });
         }
       });
+      shapes = shapes.sort(sortWalls);
     };
 
     fr.readAsText(this.files[0]);
@@ -88,7 +91,7 @@ function draw() {
   clear();
   translate(width / 2, height / 2);
   frameRate(24);
-  if (!connections.length) return;
+  // if (!shapes.length) return;
   if (changed) {
     Object.entries(mapOfPoints).forEach(([key, value]) => {
       let point = value;
@@ -98,59 +101,76 @@ function draw() {
         params.changed === "y" ||
         params.changed === "z";
 
-      // Object.entries(params.rotation).forEach(([key, value]) => {
-      //   // console.log(key === params.changed);
-      //   if (!value) return;
-      //   if (key === "z") {
-      //     point = rotateZ3d(point, value);
-      //   } else if (key === "x") {
-      //     point = rotateX3d(point, value);
-      //   } else if (key === "y") {
-      //     point = rotateY3d(point, value);
-      //   }
-      // });
       point = rotatePoint(params.rotation, value);
-      console.log(point);
-      // console.log(
-      //   params.changed,
-      //   shouldRotate,
-      //   params.rotation[params.changed]
-      // );
-      // if (shouldRotate) {
-      //   if (params.changed === "z") {
-      //     point = rotateZ3d(point, params.rotation[params.changed]);
-      //   } else if (params.changed === "x") {
-      //     point = rotateX3d(point, params.rotation[params.changed]);
-      //   } else if (params.changed === "y") {
-      //     point = rotateY3d(point, params.rotation[params.changed]);
-      //   }
-      // }
-
+      // console.log(point);
       point = {
         x: point.x + params.translation.x,
         y: point.y + params.translation.y,
         z: point.z + params.translation.z,
       };
-      // point = scalePoint(point, params.zoom.value);
-
+      // console.log(point);
+      shapes = shapes.sort(sortWalls);
       mapOf2dPoints[key] = perspectiveProjection(
         point,
         distance,
         params.zoom.value
       );
+      // console.log(mapOf2dPoints[key]);
     });
+
+    // console.log(
+    //   shapes.map((points) => {
+    //     const p1 = mapOf2dPoints[points.p1];
+    //     const p2 = mapOf2dPoints[points.p2];
+    //     const p3 = mapOf2dPoints[points.p3];
+    //     const p4 = mapOf2dPoints[points.p4];
+    //     return Math.max(p1.z, p2.z, p3.z, p4.z);
+    //   }),
+    //   mapOfPoints
+    // );
   }
 
-  connections.forEach(({ from, to }) => {
-    const { x: xFrom, y: yFrom } = mapOf2dPoints[from];
-    const { x: xTo, y: yTo } = mapOf2dPoints[to];
-
-    line(xFrom, yFrom, xTo, yTo);
-    strokeWeight(1);
+  shapes.forEach((points) => {
+    const p1 = mapOf2dPoints[points.p1];
+    const p2 = mapOf2dPoints[points.p2];
+    const p3 = mapOf2dPoints[points.p3];
+    const p4 = mapOf2dPoints[points.p4];
+    let c = color(255, 204, 0);
+    fill(c);
+    quad(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y);
   });
 
   changed = false;
 }
+
+const sortWalls = (wallA, wallB) => {
+  const p1A = mapOf2dPoints[wallA.p1];
+  const p2A = mapOf2dPoints[wallA.p2];
+  const p3A = mapOf2dPoints[wallA.p3];
+  const p4A = mapOf2dPoints[wallA.p4];
+
+  const p1B = mapOf2dPoints[wallB.p1];
+  const p2B = mapOf2dPoints[wallB.p2];
+  const p3B = mapOf2dPoints[wallB.p3];
+  const p4B = mapOf2dPoints[wallB.p4];
+
+  const minZA = Math.min(p1A.z, p2A.z, p3A.z, p4A.z);
+  const maxZA = Math.max(p1A.z, p2A.z, p3A.z, p4A.z);
+  const maxZB = Math.max(p1B.z, p2B.z, p3B.z, p4B.z);
+  const minZB = Math.min(p1B.z, p2B.z, p3B.z, p4B.z);
+  console.log({ minZA, maxZA, minZB, maxZB });
+  if (maxZA > maxZB) {
+    return 1;
+  } else if (maxZB > maxZA) {
+    return -1;
+  } else if (minZA > minZB) {
+    return 1;
+  } else if (minZB > minZA) {
+    return -1;
+  }
+
+  return 1;
+};
 
 // Not used
 
@@ -173,9 +193,11 @@ const normalizePoints = () => {
       maxY = value.y;
     }
   });
+
   const diagonal = Math.sqrt(
     Math.pow(maxX - minX, 2) + Math.pow(maxY - minY, 2)
   );
+
   const newMapOf2dPoints = Object.entries(mapOf2dPoints).reduce(
     (prevObject, [key, value]) => {
       return {
@@ -190,3 +212,25 @@ const normalizePoints = () => {
   );
   mapOf2dPoints = newMapOf2dPoints;
 };
+
+// if (
+//   Math.max(
+//     Math.abs(p1A.z),
+//     Math.abs(p2A.z),
+//     Math.abs(p3A.z),
+//     Math.abs(p4A.z)
+//   ) >
+//   Math.max(Math.abs(p1B.z), Math.abs(p2B.z), Math.abs(p3B.z), Math.abs(p4B.z))
+// ) {
+//   return -1;
+// } else if (
+//   Math.max(
+//     Math.abs(p1A.z),
+//     Math.abs(p2A.z),
+//     Math.abs(p3A.z),
+//     Math.abs(p4A.z)
+//   ) <
+//   Math.max(Math.abs(p1B.z), Math.abs(p2B.z), Math.abs(p3B.z), Math.abs(p4B.z))
+// ) {
+//   return 1;
+// }

@@ -44,7 +44,7 @@ const Matrix = () => {
   const getPerspectiveMatrix2 = (a, fi = 90, zf = 1000, zn = 0.01) => [
     [1 / (a * Math.tan(fi / 2)), 0, 0, 0],
     [0, 1 / Math.tan(fi / 2), 0, 0],
-    [0, 0, zn / (zn - zf), (2 * zn * zf) / (zn - zf)],
+    [0, 0, (zn + zf) / (zn - zf), (2 * zn * zf) / (zn - zf)],
     [0, 0, -1, 0],
   ];
 
