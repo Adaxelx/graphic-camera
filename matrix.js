@@ -42,10 +42,10 @@ const Matrix = () => {
   ];
 
   const getPerspectiveMatrix2 = (a, fi = 90, zf = 1000, zn = 0.01) => [
-    [1 / (a * Math.tan(fi / 2)), 0, 0, 0],
+    [1 / Math.tan(fi / 2), 0, 0, 0],
     [0, 1 / Math.tan(fi / 2), 0, 0],
-    [0, 0, (zn + zf) / (zn - zf), (2 * zn * zf) / (zn - zf)],
-    [0, 0, -1, 0],
+    [0, 0, -zf / (zf - zn), -1],
+    [0, 0, (zf * zn) / (zf - zn), 0],
   ];
 
   const getRotateXMatrix = (angle) => [
@@ -131,12 +131,14 @@ const Matrix = () => {
       generatePointMatrix(point)
     );
 
-  const perspectiveProjection = (point, distance, fi) =>
-    perspectiveMultiplyParse(
+  const perspectiveProjection = (point, distance, fi) => {
+    const perspectivePoint = perspectiveMultiplyParse(
       getPerspectiveMatrix2(1, fi),
       generatePointMatrix(point),
       distance
     );
+    return perspectivePoint;
+  };
 
   const translatePoint = (point, translation) =>
     multiplyParsed(

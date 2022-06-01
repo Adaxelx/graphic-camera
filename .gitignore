@@ -1,5 +1,7 @@
 .vscode
 
 *.pdf
-
+node_modules
+package.json
+package-lock.json
 *.docx

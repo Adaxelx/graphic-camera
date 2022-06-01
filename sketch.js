@@ -2,26 +2,36 @@ let mapOfPoints = {};
 let mapOf2dPoints = {};
 let connections = [];
 let shapes = [];
-
+let setOfLinesBinary = new Set();
 let distance = 1000;
+const observer = { x: 0, y: 0, z: -1000 };
+const colors = ["blue", "yellow", "green", "red", "orange", "brown"];
+let shapesForProjection = [];
+const range = (start, end, step = 1) => {
+  const output = [];
+  if (typeof end === "undefined") {
+    end = start;
+    start = 0;
+  }
+  for (let i = start; i < end; i += step) {
+    output.push(i);
+  }
+  return output;
+};
+
+const thisIsNotSrodekCiezkosciForSure = ({ p1, p2, p3, p4 }, val) =>
+  Math[val](p1.z, p2.z, p3.z, p4.z);
 
 const canvasWidth = 800;
 const canvasHeight = 800;
 
 const average = (...args) => args.reduce((a, b) => a + b) / args.length;
-const T1 = { x: 0, y: 0, z: 0 };
-
-const rotationAxisParams = {
-  y: { A: 0, B: 1, C: 0 },
-  x: { A: 100, B: 1, C: 0 },
-  z: { A: 0, B: 1, C: 100 },
-};
 
 const params = {
   rotation: { x: 0, y: 0, z: 0 },
   translation: { x: 0, y: 0, z: 0 },
   zoom: { value: 90 },
-  changed: "",
+  changedPoints: "",
 };
 
 const {
@@ -34,7 +44,7 @@ const {
   rotatePoint,
 } = Matrix();
 
-let changed = true;
+let changedPoints = true;
 
 const { keyboardConfig, createListOfKeys } = Helpers();
 
@@ -66,7 +76,19 @@ function setup() {
           shapes.push({ p1, p2, p3, p4 });
         }
       });
-      shapes = shapes.sort(sortWalls);
+      shapes = shapes.map((shape, i) => ({
+        ...shape,
+        color: colors[Math.round(i % 6)],
+      }));
+      shapes = shapes
+        .map((shape) => {
+          return splitWallsRec(getPoints(shape, mapOf2dPoints), 0)?.flat?.(2);
+        })
+        ?.flat?.(2);
+      shapesForProjection = shapes;
+
+      // shapes = shapes.sort(sortWalls);
+      // generateLinesObject();
     };
 
     fr.readAsText(this.files[0]);
@@ -78,8 +100,8 @@ function setup() {
         options.forEach((option) => {
           if (option.keys.some((keyValue) => e.key === keyValue)) {
             params[actionName][configName] += option.value;
-            params.changed = configName;
-            changed = true;
+            params.changedPoints = configName;
+            changedPoints = true;
           }
         });
       });
@@ -87,78 +109,117 @@ function setup() {
   });
 }
 
+const projectPoint = (point) => {
+  const shouldRotate =
+    params.changedPoints === "x" ||
+    params.changedPoints === "y" ||
+    params.changedPoints === "z";
+
+  point = rotatePoint(params.rotation, point);
+
+  point = {
+    x: point.x + params.translation.x,
+    y: point.y + params.translation.y,
+    z: point.z + params.translation.z,
+  };
+
+  return perspectiveProjection(point, distance, params.zoom.value);
+};
+
 function draw() {
   clear();
   translate(width / 2, height / 2);
   frameRate(24);
-  // if (!shapes.length) return;
-  if (changed) {
-    Object.entries(mapOfPoints).forEach(([key, value]) => {
-      let point = value;
-
-      const shouldRotate =
-        params.changed === "x" ||
-        params.changed === "y" ||
-        params.changed === "z";
-
-      point = rotatePoint(params.rotation, value);
-      // console.log(point);
-      point = {
-        x: point.x + params.translation.x,
-        y: point.y + params.translation.y,
-        z: point.z + params.translation.z,
+  if (!shapes.length) return;
+  if (changedPoints) {
+    shapesForProjection = shapes.map(({ p1, p2, p3, p4, color }) => {
+      return {
+        p1: projectPoint(p1),
+        p2: projectPoint(p2),
+        p3: projectPoint(p3),
+        p4: projectPoint(p4),
+        color,
       };
-      // console.log(point);
-      shapes = shapes.sort(sortWalls);
-      mapOf2dPoints[key] = perspectiveProjection(
-        point,
-        distance,
-        params.zoom.value
-      );
-      // console.log(mapOf2dPoints[key]);
     });
 
-    // console.log(
-    //   shapes.map((points) => {
-    //     const p1 = mapOf2dPoints[points.p1];
-    //     const p2 = mapOf2dPoints[points.p2];
-    //     const p3 = mapOf2dPoints[points.p3];
-    //     const p4 = mapOf2dPoints[points.p4];
-    //     return Math.max(p1.z, p2.z, p3.z, p4.z);
-    //   }),
-    //   mapOfPoints
-    // );
+    shapesForProjection.sort(sortWalls);
   }
-
-  shapes.forEach((points) => {
-    const p1 = mapOf2dPoints[points.p1];
-    const p2 = mapOf2dPoints[points.p2];
-    const p3 = mapOf2dPoints[points.p3];
-    const p4 = mapOf2dPoints[points.p4];
-    let c = color(255, 204, 0);
-    fill(c);
+  shapesForProjection.forEach((points) => {
+    const p1 = points.p1;
+    const p2 = points.p2;
+    const p3 = points.p3;
+    const p4 = points.p4;
+    // const { color } = points;
+    const color = createPhongReflection(
+      observer,
+      { x: 50, y: 150, z: -100 },
+      point,
+      getSurface(points)
+    );
+    console.log(color);
+    fill(color.r, color.g, color.b);
+    stroke(color.r, color.g, color.b);
     quad(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y);
   });
-
-  changed = false;
+  changedPoints = false;
 }
 
+const getSurface = (wallA) => {
+  const p1A = wallA.p1;
+  const p2A = wallA.p2;
+  const p3A = wallA.p3;
+  const p4A = wallA.p4;
+  const a =
+    (p2A.y - p1A.y) * (p3A.z - p1A.z) - (p3A.y - p1A.y) * (p2A.z - p1A.z);
+  const b =
+    (p2A.z - p1A.z) * (p3A.x - p1A.x) - (p3A.z - p1A.z) * (p2A.x - p1A.x);
+  const c =
+    (p2A.x - p1A.x) * (p3A.y - p1A.y) - (p3A.x - p1A.x) * (p2A.y - p1A.y);
+  const d = -1 * (a * p1A.x + b * p1A.y + c * p1A.z);
+  // console.log(a, b, c, d);
+  return { a, b, c, d };
+};
+
+const isPositive = ({ a, b, c, d }, { x, y, z }, observer) => {
+  return (
+    Math.sign(a * x + b * y + c * z + d) ===
+    Math.sign(a * observer.x + b * observer.y + c * observer.z + d)
+  );
+};
+
+const getCenterOfGravityDim = (wall, dim) =>
+  (wall.p1[dim] + wall.p2[dim] + wall.p3[dim] + wall.p4[dim]) / 4;
+
+const getCenterOfGravityWall = (wall) => ({
+  ...wall,
+  x: getCenterOfGravityDim(wall, "x"),
+  y: getCenterOfGravityDim(wall, "y"),
+  z: getCenterOfGravityDim(wall, "z"),
+});
+
+const distanceBetween2Points = (p1, p2) =>
+  Math.sqrt(
+    Math.pow(p2.x - p1.x, 2) +
+      Math.pow(p2.y - p1.y, 2) +
+      Math.pow(p2.y - p1.y, 2)
+  );
+
 const sortWalls = (wallA, wallB) => {
-  const p1A = mapOf2dPoints[wallA.p1];
-  const p2A = mapOf2dPoints[wallA.p2];
-  const p3A = mapOf2dPoints[wallA.p3];
-  const p4A = mapOf2dPoints[wallA.p4];
+  const p1A = wallA.p1;
+  const p2A = wallA.p2;
+  const p3A = wallA.p3;
+  const p4A = wallA.p4;
 
-  const p1B = mapOf2dPoints[wallB.p1];
-  const p2B = mapOf2dPoints[wallB.p2];
-  const p3B = mapOf2dPoints[wallB.p3];
-  const p4B = mapOf2dPoints[wallB.p4];
+  const p1B = wallB.p1;
+  const p2B = wallB.p2;
+  const p3B = wallB.p3;
+  const p4B = wallB.p4;
 
-  const minZA = Math.min(p1A.z, p2A.z, p3A.z, p4A.z);
-  const maxZA = Math.max(p1A.z, p2A.z, p3A.z, p4A.z);
-  const maxZB = Math.max(p1B.z, p2B.z, p3B.z, p4B.z);
-  const minZB = Math.min(p1B.z, p2B.z, p3B.z, p4B.z);
-  console.log({ minZA, maxZA, minZB, maxZB });
+  minZA = Math.min(p1A.z, p2A.z, p3A.z, p4A.z);
+  maxZA = Math.max(p1A.z, p2A.z, p3A.z, p4A.z);
+  minZB = Math.min(p1B.z, p2B.z, p3B.z, p4B.z);
+  maxZB = Math.max(p1B.z, p2B.z, p3B.z, p4B.z);
+
   if (maxZA > maxZB) {
     return 1;
   } else if (maxZB > maxZA) {
@@ -168,69 +229,135 @@ const sortWalls = (wallA, wallB) => {
   } else if (minZB > minZA) {
     return -1;
   }
-
-  return 1;
 };
 
-// Not used
+const splitWallsRec = (wall, itCount) => {
+  if (itCount === 4) return wall;
 
-const normalizePoints = () => {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  Object.entries(mapOf2dPoints).forEach(([key, value]) => {
-    if (minX > value.x) {
-      minX = value.x;
-    }
-    if (minY > value.y) {
-      minY = value.y;
-    }
-    if (maxX < value.x) {
-      maxX = value.x;
-    }
-    if (maxY < value.y) {
-      maxY = value.y;
-    }
-  });
+  const point1 = wall.p1;
+  const point2 = wall.p2;
+  const point3 = wall.p3;
+  const point4 = wall.p4;
+  const color = wall.color;
+  result = [];
+  middlePoint12 = getMiddlePointOfLine(point1, point2);
+  middlePoint23 = getMiddlePointOfLine(point2, point3);
+  middlePoint34 = getMiddlePointOfLine(point3, point4);
+  middlePoint41 = getMiddlePointOfLine(point4, point1);
+  wallMiddlePoint = {
+    x: (point1.x + point2.x + point3.x + point4.x) / 4,
+    y: (point1.y + point2.y + point3.y + point4.y) / 4,
+    z: (point1.z + point2.z + point3.z + point4.z) / 4,
+  };
+  result = [
+    generateObject(
+      point1,
+      middlePoint12,
+      wallMiddlePoint,
+      middlePoint41,
+      color
+    ),
+    generateObject(
+      point2,
+      middlePoint23,
+      wallMiddlePoint,
+      middlePoint12,
+      color
+    ),
+    generateObject(
+      point3,
+      middlePoint34,
+      wallMiddlePoint,
+      middlePoint23,
+      color
+    ),
+    generateObject(
+      point4,
+      middlePoint41,
+      wallMiddlePoint,
+      middlePoint34,
+      color
+    ),
+  ];
 
-  const diagonal = Math.sqrt(
-    Math.pow(maxX - minX, 2) + Math.pow(maxY - minY, 2)
-  );
-
-  const newMapOf2dPoints = Object.entries(mapOf2dPoints).reduce(
-    (prevObject, [key, value]) => {
-      return {
-        ...prevObject,
-        [key]: {
-          x: ((value.x - minX) / diagonal) * 400,
-          y: ((value.y - minY) / diagonal) * 400,
-        },
-      };
-    },
-    {}
-  );
-  mapOf2dPoints = newMapOf2dPoints;
+  return result.map((result) => splitWallsRec(result, itCount + 1));
 };
 
-// if (
-//   Math.max(
-//     Math.abs(p1A.z),
-//     Math.abs(p2A.z),
-//     Math.abs(p3A.z),
-//     Math.abs(p4A.z)
-//   ) >
-//   Math.max(Math.abs(p1B.z), Math.abs(p2B.z), Math.abs(p3B.z), Math.abs(p4B.z))
-// ) {
-//   return -1;
-// } else if (
-//   Math.max(
-//     Math.abs(p1A.z),
-//     Math.abs(p2A.z),
-//     Math.abs(p3A.z),
-//     Math.abs(p4A.z)
-//   ) <
-//   Math.max(Math.abs(p1B.z), Math.abs(p2B.z), Math.abs(p3B.z), Math.abs(p4B.z))
-// ) {
-//   return 1;
-// }
+const getPoints = (wall, mapOf2dPoints) => {
+  const point1 = mapOf2dPoints[wall.p1];
+  const point2 = mapOf2dPoints[wall.p2];
+  const point3 = mapOf2dPoints[wall.p3];
+  const point4 = mapOf2dPoints[wall.p4];
+  return { p1: point1, p2: point2, p3: point3, p4: point4, color: wall.color };
+};
+
+const generateObject = (p1, p2, p3, p4, color) => ({
+  p1,
+  p2,
+  p3,
+  p4,
+  color,
+});
+
+const getMiddlePointOfLine = (point1, point2) => {
+  return {
+    x: (point1.x + point2.x) / 2,
+    y: (point1.y + point2.y) / 2,
+    z: (point1.z + point2.z) / 2,
+  };
+};
+
+// 3 Projekt
+
+const createPhongReflection = (
+  observer,
+  pointOfLight,
+  surfacePoint,
+  surface
+) => {
+  const ka = 1;
+  const kd = 1;
+  const ks = 1;
+  const alfa = 123;
+  const ip = 1;
+  const fatt = 1;
+  const ia = 123;
+  const n = 5;
+  const is = 43;
+  const id = 53;
+  let surfaceVector = createVector(
+    surfacePoint.x,
+    surfacePoint.y,
+    surfacePoint.z
+  );
+  let V = createVector(surfacePoint.x, surfacePoint.y, surfacePoint.z).sub(
+    createVector(observer.x, observer.y, observer.z)
+  );
+  let L = createVector(surfacePoint.x, surfacePoint.y, surfacePoint.z).sub(
+    createVector(pointOfLight.x, pointOfLight.y, pointOfLight.z)
+  );
+
+  let N = createVector(surface.a, surface.b, surface.c);
+
+  let R = L.copy().reflect(N);
+
+  const Ig =
+    ia * ka +
+    kd * N.normalize().mult(L.normalize()).mag() * id +
+    ks * (R.normalize().mult(V.normalize()).mag() ^ alfa) * is;
+
+  const Ib =
+    ia * ka +
+    kd * N.normalize().mult(L.normalize()).mag() * id +
+    ks * (R.normalize().mult(V.normalize()).mag() ^ alfa) * is;
+  const Ir =
+    ia * ka +
+    kd * N.normalize().mult(L.normalize()).mag() * id +
+    ks * (R.normalize().mult(V.normalize()).mag() ^ alfa) * is;
+
+  // ia * ka +
+  // ip * fatt * kd * N.normalize().mult(L.normalize()).mag() +
+  // ip * fatt * ks * (Math.cos(alfa) ^ n);
+
+  return { r: Ir % 255, g: Ig % 255, b: Ig % 255 };
+};
