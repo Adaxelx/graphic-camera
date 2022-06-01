@@ -337,7 +337,9 @@ const createPhongReflection = (
     createVector(pointOfLight.x, pointOfLight.y, pointOfLight.z)
   );
 
-  let N = createVector(surface.a, surface.b, surface.c);
+  let N = createVector(surfacePoint.x, surfacePoint.y, surfacePoint.z).sub(
+    createVector(surface.a, surface.b, surface.c)
+  );
 
   let R = L.copy().reflect(N);
 
