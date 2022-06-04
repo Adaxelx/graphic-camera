@@ -7,6 +7,11 @@ let distance = 1000;
 const observer = { x: 0, y: 0, z: -1000 };
 const colors = ["blue", "yellow", "green", "red", "orange", "brown"];
 let shapesForProjection = [];
+
+let ka = 0.1;
+let ks = 0.3;
+let kd = 0.3;
+
 const range = (start, end, step = 1) => {
   const output = [];
   if (typeof end === "undefined") {
@@ -52,6 +57,7 @@ function setup() {
   createCanvas(canvasWidth, canvasHeight);
   fill(0);
   createListOfKeys();
+
   document.getElementById("inputfile").addEventListener("change", function () {
     var fr = new FileReader();
     fr.onload = function () {
@@ -107,6 +113,30 @@ function setup() {
       });
     });
   });
+
+  const kaElement = document.getElementById("ka");
+  kaElement.value = ka * 100;
+  const kdElement = document.getElementById("kd");
+  kdElement.value = kd * 100;
+  const ksElement = document.getElementById("ks");
+  ksElement.value = ks * 100;
+
+  document.getElementById("ksValue").textContent = ks;
+  document.getElementById("kaValue").textContent = ka;
+  document.getElementById("kdValue").textContent = kd;
+
+  kaElement.addEventListener("change", (e) => {
+    ka = Number(e.target.value) / 100;
+    document.getElementById("kaValue").textContent = ka;
+  });
+  kdElement.addEventListener("change", (e) => {
+    kd = Number(e.target.value) / 100;
+    document.getElementById("kdValue").textContent = kd;
+  });
+  ksElement.addEventListener("change", (e) => {
+    ks = Number(e.target.value) / 100;
+    document.getElementById("ksValue").textContent = ks;
+  });
 }
 
 const projectPoint = (point) => {
@@ -152,11 +182,17 @@ function draw() {
     // const { color } = points;
     const color = createPhongReflection(
       observer,
-      { x: 50, y: 150, z: -100 },
+      { x: -25, y: 50, z: 50 },
       point,
-      getSurface(points)
+      getSurface(points),
+      {
+        ambient: { r: 74, g: 95, b: 255 },
+        specular: { r: 44, g: 35, b: 145 },
+        diffuse: { r: 22, g: 2, b: 242 },
+        pointColor: { r: 0, g: 0, b: 0 },
+      }
     );
-    console.log(color);
+
     fill(color.r, color.g, color.b);
     stroke(color.r, color.g, color.b);
     quad(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y);
@@ -232,7 +268,7 @@ const sortWalls = (wallA, wallB) => {
 };
 
 const splitWallsRec = (wall, itCount) => {
-  if (itCount === 4) return wall;
+  if (itCount === 3) return wall;
 
   const point1 = wall.p1;
   const point2 = wall.p2;
@@ -309,22 +345,33 @@ const getMiddlePointOfLine = (point1, point2) => {
 
 // 3 Projekt
 
+const multiplyRGBWithScalar = (color, scalar) =>
+  Object.entries(color).reduce(
+    (prevValue, [key, value]) => ({ ...prevValue, [key]: value * scalar }),
+    {}
+  );
+
+const sumColors = (...colors) =>
+  colors.reduce(
+    (prevColor, currentColor) => ({
+      r: prevColor.r + currentColor.r,
+      g: prevColor.g + currentColor.g,
+      b: prevColor.b + currentColor.b,
+    }),
+    { r: 0, g: 0, b: 0 }
+  );
+
 const createPhongReflection = (
   observer,
   pointOfLight,
   surfacePoint,
-  surface
+  surface,
+  { ambient, diffuse, specular, pointColor } // {r: X,g:Y,b:Z}
 ) => {
-  const ka = 1;
-  const kd = 1;
-  const ks = 1;
-  const alfa = 123;
-  const ip = 1;
-  const fatt = 1;
-  const ia = 123;
-  const n = 5;
-  const is = 43;
-  const id = 53;
+  // const ka = 0.2; //0.1 - 0.2
+  // const kd = 0.6; //0.3 - 0.6
+  // const ks = 0.6; //0.3 - 0.6
+
   let surfaceVector = createVector(
     surfacePoint.x,
     surfacePoint.y,
@@ -341,25 +388,27 @@ const createPhongReflection = (
     createVector(surface.a, surface.b, surface.c)
   );
 
-  let R = L.copy().reflect(N);
+  let R = N.copy()
+    .normalize()
+    .mult(L.copy().normalize())
+    .mult(N.copy().normalize())
+    .sub(L.copy().normalize())
+    .mult(2);
 
-  const Ig =
-    ia * ka +
-    kd * N.normalize().mult(L.normalize()).mag() * id +
-    ks * (R.normalize().mult(V.normalize()).mag() ^ alfa) * is;
-
-  const Ib =
-    ia * ka +
-    kd * N.normalize().mult(L.normalize()).mag() * id +
-    ks * (R.normalize().mult(V.normalize()).mag() ^ alfa) * is;
-  const Ir =
-    ia * ka +
-    kd * N.normalize().mult(L.normalize()).mag() * id +
-    ks * (R.normalize().mult(V.normalize()).mag() ^ alfa) * is;
-
-  // ia * ka +
-  // ip * fatt * kd * N.normalize().mult(L.normalize()).mag() +
-  // ip * fatt * ks * (Math.cos(alfa) ^ n);
-
-  return { r: Ir % 255, g: Ig % 255, b: Ig % 255 };
+  const A = multiplyRGBWithScalar(ambient, ka);
+  const D = multiplyRGBWithScalar(
+    diffuse,
+    kd * L.copy().normalize().mult(N.copy().normalize()).mag()
+  );
+  const S = multiplyRGBWithScalar(
+    specular,
+    ks * Math.pow(V.copy().normalize().mult(R.copy().normalize()).mag(), Math.E)
+  );
+  const summedLightColor = sumColors(A, D, S);
+  const Lp = {
+    r: summedLightColor.r + pointColor.r,
+    g: summedLightColor.g + pointColor.g,
+    b: summedLightColor.b + pointColor.b,
+  };
+  return Lp;
 };
